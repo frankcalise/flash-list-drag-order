@@ -14,6 +14,7 @@ import Animated, {
   scrollTo,
   useAnimatedRef,
   useAnimatedScrollHandler,
+  useAnimatedStyle,
   useSharedValue,
 } from "react-native-reanimated";
 
@@ -54,6 +55,8 @@ export default function HomeScreen() {
   const scrollOffsetY = useSharedValue(0);
   const dragItemAbsY = useSharedValue(0);
   const [isDraggingItem, setIsDraggingItem] = React.useState(false);
+  const [draggingIndex, setDraggingIndex] = React.useState(-1);
+  const [floatingOverIndex, setFloatingOverIndex] = React.useState(-1);
 
   // TODO get the list height
   const listHeight = React.useRef(701);
@@ -67,8 +70,7 @@ export default function HomeScreen() {
 
       return Math.min(
         data.length - 1,
-        // TODO maybe take the tab bar into account here?
-        Math.max(0, Math.floor(y + scrollOffsetY.value) / ROW_HEIGHT)
+        Math.max(0, Math.round((y + scrollOffsetY.value) / ROW_HEIGHT))
       );
     },
     [data, scrollOffsetY, insets]
@@ -101,25 +103,30 @@ export default function HomeScreen() {
    * Thanks Hirbod - https://github.com/software-mansion/react-native-gesture-handler/discussions/2061#discussioncomment-2794942
    */
   const panGesture = Gesture.Pan()
-    // .runOnJS(true)
     .maxPointers(1)
     .activateAfterLongPress(300)
     .onStart(({ y, absoluteY }) => {
       // Get item index from the Y position where the gesture started
       const index = getIndexFromY(y);
-      console.log("onStart", { index, y });
+      console.log("onStart", { index, y, absoluteY });
       runOnJS(setIsDraggingItem)(true);
-      dragItemAbsY.value = absoluteY;
+      runOnJS(setDraggingIndex)(index);
+      runOnJS(setFloatingOverIndex)(index);
+      dragItemAbsY.value = absoluteY + ROW_HEIGHT / 2;
     })
     .onUpdate(({ absoluteY, y }) => {
       scrollLogic({ absoluteY });
-      dragItemAbsY.value = absoluteY;
+      dragItemAbsY.value = absoluteY + ROW_HEIGHT / 2;
 
-      // Also begin updating the index for the dragged item
+      const index = getIndexFromY(y);
+      runOnJS(setFloatingOverIndex)(index);
     })
-    .onFinalize(({ translationX, translationY }) => {
+    .onFinalize(() => {
       runOnJS(setIsDraggingItem)(false);
-      // console.log("onFinalize", { translationX, translationY });
+      runOnJS(setDraggingIndex)(-1);
+      runOnJS(setFloatingOverIndex)(-1);
+
+      // TODO anything final to do with the data here?
     });
 
   /**
@@ -133,19 +140,28 @@ export default function HomeScreen() {
     },
   });
 
+  const $floatingItem = useAnimatedStyle(() => {
+    return {
+      top: dragItemAbsY.value,
+    };
+  });
+
   // TODO extract list item into component to use inbetween the floating Animated layer and for the FlashList
+  console.log({ draggingIndex, floatingOverIndex });
 
   return (
     <View style={{ flex: 1, paddingTop: insets.top }}>
       {isDraggingItem && (
         <Animated.View
-          style={{
-            top: dragItemAbsY,
-            position: "absolute",
-            width: "100%",
-            zIndex: 99,
-            elevation: 99,
-          }}
+          style={[
+            {
+              position: "absolute",
+              width: "100%",
+              zIndex: 99,
+              elevation: 99,
+            },
+            $floatingItem,
+          ]}
         >
           <View
             style={{
@@ -155,27 +171,21 @@ export default function HomeScreen() {
               display: "flex",
               flexDirection: "row",
               alignItems: "center",
-              opacity: 1, // state === "placeholder" ? 0 : 1
+              opacity: 0.6,
             }}
-            // onLayout={onLayout}
           >
             <ThemedText style={{ fontSize: 24 }}>=</ThemedText>
             <ThemedText style={{ fontSize: 18, textAlign: "center", flex: 1 }}>
               item idx here
             </ThemedText>
           </View>
-          {/* {this.props.renderRow(
-            dataProvider.getDataForIndex(draggingIdx),
-            draggingIdx,
-            "dragging",
-            this.props.renderDragHandle()
-          )} */}
         </Animated.View>
       )}
       <GestureDetector ref={panRef} gesture={panGesture}>
         <AnimatedFlashList
           ref={listRef}
           data={data}
+          extraData={{ draggingIndex, floatingOverIndex }}
           // Thanks Jakub - https://github.com/software-mansion/react-native-gesture-handler/issues/2175#issuecomment-1230207219
           overrideProps={{
             simultaneousHandlers: panRef,
@@ -192,9 +202,15 @@ export default function HomeScreen() {
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
-                  opacity: 1, // state === "placeholder" ? 0 : 1
+                  // "hide" the item we're dragging in the list, looks like it's missing
+                  opacity: draggingIndex === index ? 0 : 1,
+                  borderColor: "black",
+                  // style border color top when this row item index is one before the floating item
+                  borderTopWidth:
+                    floatingOverIndex !== -1 && floatingOverIndex === index
+                      ? 3
+                      : 0,
                 }}
-                // onLayout={onLayout}
               >
                 <ThemedText style={{ fontSize: 24 }}>=</ThemedText>
                 <ThemedText
