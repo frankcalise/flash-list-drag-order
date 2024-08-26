@@ -47,7 +47,7 @@ export default function HomeScreen() {
   const panRef = React.useRef();
   const listRef = useAnimatedRef<FlashList<number>>();
   const scrollOffsetY = useSharedValue(0);
-  const [isDragScrolling, setIsDragScrolling] = React.useState(false);
+
   // TODO get the list height
   const listHeight = React.useRef(701);
 
@@ -89,31 +89,6 @@ export default function HomeScreen() {
     [scrollOffsetY, listRef]
   );
 
-  // // could this be an effect?
-  // // const moveListWhileDragging = React.useCallback(
-  // function moveListWhileDragging(amount: number) {
-  //   "worklet";
-  //   console.log("in moveListWhileDragging", amount, scrollOffsetY.value);
-
-  //   if (isDragScrolling === false) {
-  //     return;
-  //   }
-
-  //   // listRef.current?.scrollToOffset({
-  //   //   offset: scrollOffsetY.value + amount,
-  //   //   animated: false,
-  //   // });
-  //   scrollTo(listRef, 0, scrollOffsetY.value + amount, false);
-
-  //   requestAnimationFrame(() => {
-  //     // setTimeout(() => {
-  //     moveListWhileDragging(amount);
-  //     // }, 50);
-  //   });
-  // }
-  // //   [isDragScrolling, listRef, scrollOffsetY]
-  // // );
-
   /**
    * This gesture will run on a native thread, if you try to access JS code, such as setState, it will crash.
    * Thanks Hirbod - https://github.com/software-mansion/react-native-gesture-handler/discussions/2061#discussioncomment-2794942
@@ -128,27 +103,12 @@ export default function HomeScreen() {
       console.log("onStart", { index, y });
     })
     .onUpdate(({ absoluteY, y }) => {
-      // Check for dragging near edges to induce scrolling the list, else we're not scrolling
-      // if Y + threshold is greater than the height of the list container, scroll down
-      // if (y + SCROLL_THRESHOLD > listHeight.current) {
-      //   console.log("scroll down");
-      //   runOnJS(setIsDragScrolling)(true);
-      //   moveListWhileDragging(ROW_HEIGHT / 2);
-      // } else if (y < SCROLL_THRESHOLD) {
-      //   console.log("scroll up");
-      //   runOnJS(setIsDragScrolling)(true);
-      //   moveListWhileDragging(-ROW_HEIGHT / 2);
-      // } else {
-      //   runOnJS(setIsDragScrolling)(false);
-      // }
-
       scrollLogic({ absoluteY });
 
       // Also begin updating the index for the dragged item
     })
     .onFinalize(({ translationX, translationY }) => {
       // console.log("onFinalize", { translationX, translationY });
-      runOnJS(setIsDragScrolling)(false);
     });
 
   /**
