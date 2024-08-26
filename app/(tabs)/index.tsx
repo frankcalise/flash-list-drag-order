@@ -4,7 +4,11 @@ import { View } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import {
+  Gesture,
+  GestureDetector,
+  GestureType,
+} from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
   scrollTo,
@@ -24,7 +28,7 @@ import Animated, {
 
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList<number>);
 
-const colorMap = {};
+const colorMap: Record<number, string> = {};
 const ROW_HEIGHT = 70;
 const SCROLL_THRESHOLD = 100;
 
@@ -44,9 +48,12 @@ const data = Array.from(Array(200), (_, i) => {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const panRef = React.useRef();
+  // TODO convert from GestureDetector to PanGestureHandler
+  const panRef = React.createRef<GestureType>();
   const listRef = useAnimatedRef<FlashList<number>>();
   const scrollOffsetY = useSharedValue(0);
+  const dragItemAbsY = useSharedValue(0);
+  const [isDraggingItem, setIsDraggingItem] = React.useState(false);
 
   // TODO get the list height
   const listHeight = React.useRef(701);
@@ -97,17 +104,21 @@ export default function HomeScreen() {
     // .runOnJS(true)
     .maxPointers(1)
     .activateAfterLongPress(300)
-    .onStart(({ y }) => {
+    .onStart(({ y, absoluteY }) => {
       // Get item index from the Y position where the gesture started
       const index = getIndexFromY(y);
       console.log("onStart", { index, y });
+      runOnJS(setIsDraggingItem)(true);
+      dragItemAbsY.value = absoluteY;
     })
     .onUpdate(({ absoluteY, y }) => {
       scrollLogic({ absoluteY });
+      dragItemAbsY.value = absoluteY;
 
       // Also begin updating the index for the dragged item
     })
     .onFinalize(({ translationX, translationY }) => {
+      runOnJS(setIsDraggingItem)(false);
       // console.log("onFinalize", { translationX, translationY });
     });
 
@@ -122,8 +133,45 @@ export default function HomeScreen() {
     },
   });
 
+  // TODO extract list item into component to use inbetween the floating Animated layer and for the FlashList
+
   return (
     <View style={{ flex: 1, paddingTop: insets.top }}>
+      {isDraggingItem && (
+        <Animated.View
+          style={{
+            top: dragItemAbsY,
+            position: "absolute",
+            width: "100%",
+            zIndex: 99,
+            elevation: 99,
+          }}
+        >
+          <View
+            style={{
+              height: ROW_HEIGHT,
+              padding: 16,
+              backgroundColor: "#f2f2f2",
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              opacity: 1, // state === "placeholder" ? 0 : 1
+            }}
+            // onLayout={onLayout}
+          >
+            <ThemedText style={{ fontSize: 24 }}>=</ThemedText>
+            <ThemedText style={{ fontSize: 18, textAlign: "center", flex: 1 }}>
+              item idx here
+            </ThemedText>
+          </View>
+          {/* {this.props.renderRow(
+            dataProvider.getDataForIndex(draggingIdx),
+            draggingIdx,
+            "dragging",
+            this.props.renderDragHandle()
+          )} */}
+        </Animated.View>
+      )}
       <GestureDetector ref={panRef} gesture={panGesture}>
         <AnimatedFlashList
           ref={listRef}
@@ -140,9 +188,7 @@ export default function HomeScreen() {
                 style={{
                   height: ROW_HEIGHT,
                   padding: 16,
-                  backgroundColor:
-                    // state === "dragging" ? "#f2f2f2" : colorMap[ite],
-                    colorMap[item],
+                  backgroundColor: colorMap[item],
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
