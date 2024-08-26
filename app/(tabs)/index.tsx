@@ -79,6 +79,7 @@ export default function HomeScreen() {
     [data, scrollOffsetY, insets]
   );
 
+  // TODO doesn't seem to work on Android
   const scrollLogic = React.useCallback(
     ({ absoluteY }: { absoluteY: number }) => {
       "worklet";
@@ -158,8 +159,6 @@ export default function HomeScreen() {
   });
 
   // TODO extract list item into component to use inbetween the floating Animated layer and for the FlashList
-  console.log({ draggingIndex, floatingOverIndex });
-
   return (
     <View style={{ flex: 1, paddingTop: insets.top }}>
       {isDraggingItem && (
