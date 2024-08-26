@@ -9,8 +9,11 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import "react-native-reanimated";
 
+LogBox.ignoreLogs(["React.forwardRef"]);
+
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { LogBox } from "react-native";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();

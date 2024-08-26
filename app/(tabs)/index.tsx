@@ -42,7 +42,7 @@ function getRandomColor() {
   return color;
 }
 
-const data = Array.from(Array(200), (_, i) => {
+const INITIAL_DATA = Array.from(Array(200), (_, i) => {
   colorMap[i] = getRandomColor();
   return i;
 });
@@ -57,6 +57,7 @@ export default function HomeScreen() {
   const [isDraggingItem, setIsDraggingItem] = React.useState(false);
   const [draggingIndex, setDraggingIndex] = React.useState(-1);
   const [floatingOverIndex, setFloatingOverIndex] = React.useState(-1);
+  const [data, setData] = React.useState(INITIAL_DATA);
 
   // TODO get the list height
   const listHeight = React.useRef(701);
@@ -68,9 +69,11 @@ export default function HomeScreen() {
     (y: number) => {
       "worklet";
 
-      return Math.min(
-        data.length - 1,
-        Math.max(0, Math.round((y + scrollOffsetY.value) / ROW_HEIGHT))
+      return Math.floor(
+        Math.min(
+          data.length - 1,
+          Math.max(0, Math.floor(y + scrollOffsetY.value) / ROW_HEIGHT)
+        )
       );
     },
     [data, scrollOffsetY, insets]
@@ -126,7 +129,15 @@ export default function HomeScreen() {
       runOnJS(setDraggingIndex)(-1);
       runOnJS(setFloatingOverIndex)(-1);
 
-      // TODO anything final to do with the data here?
+      // update the data array to reflect the new order
+      const updatedData = [...data];
+      const [removed] = updatedData.splice(draggingIndex, 1);
+      // when dragging down, we have to subtract 1 from the floating index
+      // but when dragging the item up, just insert it as is
+      const directionOffset = floatingOverIndex > draggingIndex ? 1 : 0;
+      updatedData.splice(floatingOverIndex - directionOffset, 0, removed);
+
+      runOnJS(setData)(updatedData);
     });
 
   /**
@@ -166,18 +177,30 @@ export default function HomeScreen() {
           <View
             style={{
               height: ROW_HEIGHT,
-              padding: 16,
+              padding: 8,
               backgroundColor: "#f2f2f2",
               display: "flex",
               flexDirection: "row",
               alignItems: "center",
-              opacity: 0.6,
+              opacity: 0.8,
+              borderWidth: 5,
+              borderColor: "red",
             }}
           >
-            <ThemedText style={{ fontSize: 24 }}>=</ThemedText>
-            <ThemedText style={{ fontSize: 18, textAlign: "center", flex: 1 }}>
-              item idx here
-            </ThemedText>
+            <View
+              style={{
+                justifyContent: "center",
+                paddingHorizontal: 16,
+              }}
+            >
+              <ThemedText style={{ fontSize: 12, flex: 1 }}>
+                Dragging idx {draggingIndex} (val={data[draggingIndex]})
+              </ThemedText>
+              <ThemedText style={{ fontSize: 12, flex: 1 }}>
+                Float over idx {floatingOverIndex} (val=
+                {data[floatingOverIndex]})
+              </ThemedText>
+            </View>
           </View>
         </Animated.View>
       )}
