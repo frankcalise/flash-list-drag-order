@@ -1,5 +1,5 @@
 import React from "react";
-import { View } from "react-native";
+import { Dimensions, View } from "react-native";
 
 import { ThemedText } from "@/components/ThemedText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,6 +8,7 @@ import {
   Gesture,
   GestureDetector,
   GestureType,
+  PanGestureHandler,
 } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
@@ -31,7 +32,7 @@ const AnimatedFlashList = Animated.createAnimatedComponent(FlashList<number>);
 
 const colorMap: Record<number, string> = {};
 const ROW_HEIGHT = 70;
-const SCROLL_THRESHOLD = 100;
+const HEADER_HEIGHT = 0;
 
 function getRandomColor() {
   var letters = "0123456789ABCDEF";
@@ -60,10 +61,12 @@ export default function HomeScreen() {
   const [data, setData] = React.useState(INITIAL_DATA);
 
   // TODO get the list height
-  const listHeight = React.useRef(701);
+  const listHeight = useSharedValue(0);
 
   /**
    * ! Worklets must be defined before they are used, otherwise you will experience a crash.
+   *
+   * Calculate header height if your list would render ListHeaderComponent
    */
   const getIndexFromY = React.useCallback(
     (y: number) => {
@@ -72,7 +75,10 @@ export default function HomeScreen() {
       return Math.floor(
         Math.min(
           data.length - 1,
-          Math.max(0, Math.floor(y + scrollOffsetY.value) / ROW_HEIGHT)
+          Math.max(
+            0,
+            Math.floor(y + scrollOffsetY.value - HEADER_HEIGHT) / ROW_HEIGHT
+          )
         )
       );
     },
@@ -84,7 +90,7 @@ export default function HomeScreen() {
     ({ absoluteY }: { absoluteY: number }) => {
       "worklet";
       const lowerBound = 1.5 * ROW_HEIGHT;
-      const upperBound = scrollOffsetY.value + listHeight.current;
+      const upperBound = scrollOffsetY.value + listHeight.value;
 
       // scroll speed is proportional to the item height (the bigger the item, the faster it scrolls)
       const scrollSpeed = ROW_HEIGHT * 0.8;
@@ -107,6 +113,7 @@ export default function HomeScreen() {
    * Thanks Hirbod - https://github.com/software-mansion/react-native-gesture-handler/discussions/2061#discussioncomment-2794942
    */
   const panGesture = Gesture.Pan()
+    .enabled(true) // can
     .maxPointers(1)
     .activateAfterLongPress(300)
     .onStart(({ y, absoluteY }) => {
@@ -126,10 +133,6 @@ export default function HomeScreen() {
       runOnJS(setFloatingOverIndex)(index);
     })
     .onFinalize(() => {
-      runOnJS(setIsDraggingItem)(false);
-      runOnJS(setDraggingIndex)(-1);
-      runOnJS(setFloatingOverIndex)(-1);
-
       // update the data array to reflect the new order
       const updatedData = [...data];
       const [removed] = updatedData.splice(draggingIndex, 1);
@@ -139,6 +142,11 @@ export default function HomeScreen() {
       updatedData.splice(floatingOverIndex - directionOffset, 0, removed);
 
       runOnJS(setData)(updatedData);
+
+      // reset things
+      runOnJS(setIsDraggingItem)(false);
+      runOnJS(setDraggingIndex)(-1);
+      runOnJS(setFloatingOverIndex)(-1);
     });
 
   /**
@@ -214,6 +222,9 @@ export default function HomeScreen() {
           }}
           // store scroll offset
           onScroll={onScroll}
+          onLayout={({ nativeEvent }) => {
+            listHeight.value = nativeEvent.layout.height;
+          }}
           renderItem={({ item, index }) => {
             return (
               <View
