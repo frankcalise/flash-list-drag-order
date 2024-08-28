@@ -1,5 +1,5 @@
 import React from "react";
-import { Dimensions, View } from "react-native";
+import { Button, Dimensions, View } from "react-native";
 
 import { ThemedText } from "@/components/ThemedText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -55,6 +55,8 @@ export default function HomeScreen() {
   const listRef = useAnimatedRef<FlashList<number>>();
   const scrollOffsetY = useSharedValue(0);
   const dragItemAbsY = useSharedValue(0);
+  const headerHeight = useSharedValue(0);
+  const [enabled, setEnabled] = React.useState(true);
   const [isDraggingItem, setIsDraggingItem] = React.useState(false);
   const [draggingIndex, setDraggingIndex] = React.useState(-1);
   const [floatingOverIndex, setFloatingOverIndex] = React.useState(-1);
@@ -77,12 +79,13 @@ export default function HomeScreen() {
           data.length - 1,
           Math.max(
             0,
-            Math.floor(y + scrollOffsetY.value - HEADER_HEIGHT) / ROW_HEIGHT
+            Math.floor(y + scrollOffsetY.value - headerHeight.value) /
+              ROW_HEIGHT
           )
         )
       );
     },
-    [data, scrollOffsetY, insets]
+    [data, scrollOffsetY, insets, headerHeight]
   );
 
   // TODO doesn't seem to work on Android
@@ -113,21 +116,24 @@ export default function HomeScreen() {
    * Thanks Hirbod - https://github.com/software-mansion/react-native-gesture-handler/discussions/2061#discussioncomment-2794942
    */
   const panGesture = Gesture.Pan()
-    .enabled(true) // can
+    .enabled(enabled) // toggling this causes web to get into the Active state but skip Begin
     .maxPointers(1)
     .activateAfterLongPress(300)
-    .onStart(({ y, absoluteY }) => {
+    .onBegin(() => {
+      console.log("onBegin");
+    })
+    .onStart(({ y, absoluteY, oldState, state }) => {
       // Get item index from the Y position where the gesture started
       const index = getIndexFromY(y);
-      console.log("onStart", { index, y, absoluteY });
+      console.log("onStart", { index, y, absoluteY, oldState, state });
       runOnJS(setIsDraggingItem)(true);
       runOnJS(setDraggingIndex)(index);
       runOnJS(setFloatingOverIndex)(index);
-      dragItemAbsY.value = absoluteY + ROW_HEIGHT / 2;
+      dragItemAbsY.value = absoluteY;
     })
     .onUpdate(({ absoluteY, y }) => {
       scrollLogic({ absoluteY });
-      dragItemAbsY.value = absoluteY + ROW_HEIGHT / 2;
+      dragItemAbsY.value = absoluteY;
 
       const index = getIndexFromY(y);
       runOnJS(setFloatingOverIndex)(index);
@@ -211,6 +217,7 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
       )}
+      {/* @ts-expect-error Unable to provide a ref to GestureDetector? */}
       <GestureDetector ref={panRef} gesture={panGesture}>
         <AnimatedFlashList
           ref={listRef}
@@ -225,6 +232,21 @@ export default function HomeScreen() {
           onLayout={({ nativeEvent }) => {
             listHeight.value = nativeEvent.layout.height;
           }}
+          ListHeaderComponent={
+            <View
+              onLayout={({ nativeEvent }) => {
+                headerHeight.value = nativeEvent.layout.height;
+              }}
+              style={{ height: 50 }}
+            >
+              <Button
+                title={enabled ? "Disable Gestures" : "Enable Gestures"}
+                onPress={() => {
+                  setEnabled((prev) => !prev);
+                }}
+              />
+            </View>
+          }
           renderItem={({ item, index }) => {
             return (
               <View
