@@ -116,7 +116,11 @@ export default function HomeScreen() {
    * Thanks Hirbod - https://github.com/software-mansion/react-native-gesture-handler/discussions/2061#discussioncomment-2794942
    */
   const panGesture = Gesture.Pan()
-    .enabled(enabled) // toggling this causes web to get into the Active state but skip Begin
+    /**
+     * ! Issue with toggling this from UI
+     * Tracked here: https://github.com/software-mansion/react-native-gesture-handler/issues/3074
+     */
+    .enabled(enabled)
     .maxPointers(1)
     .activateAfterLongPress(300)
     .onBegin(() => {
