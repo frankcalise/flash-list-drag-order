@@ -50,8 +50,6 @@ const INITIAL_DATA = Array.from(Array(200), (_, i) => {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  // TODO convert from GestureDetector to PanGestureHandler
-  const panRef = React.createRef<GestureType>();
   const listRef = useAnimatedRef<FlashList<number>>();
   const scrollOffsetY = useSharedValue(0);
   const dragItemAbsY = useSharedValue(0);
@@ -221,16 +219,12 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
       )}
-      {/* @ts-expect-error Unable to provide a ref to GestureDetector? */}
-      <GestureDetector ref={panRef} gesture={panGesture}>
+
+      <GestureDetector gesture={panGesture}>
         <AnimatedFlashList
           ref={listRef}
           data={data}
           extraData={{ draggingIndex, floatingOverIndex }}
-          // Thanks Jakub - https://github.com/software-mansion/react-native-gesture-handler/issues/2175#issuecomment-1230207219
-          overrideProps={{
-            simultaneousHandlers: panRef,
-          }}
           // store scroll offset
           onScroll={onScroll}
           onLayout={({ nativeEvent }) => {
