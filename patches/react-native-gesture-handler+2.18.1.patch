@@ -1,0 +1,15 @@
+diff --git a/node_modules/react-native-gesture-handler/lib/commonjs/web/handlers/PanGestureHandler.js b/node_modules/react-native-gesture-handler/lib/commonjs/web/handlers/PanGestureHandler.js
+index da00cef..babbcc4 100644
+--- a/node_modules/react-native-gesture-handler/lib/commonjs/web/handlers/PanGestureHandler.js
++++ b/node_modules/react-native-gesture-handler/lib/commonjs/web/handlers/PanGestureHandler.js
+@@ -279,6 +279,10 @@ class PanGestureHandler extends _GestureHandler.default {
+ 
+     this.tracker.removeFromTracker(event.pointerId);
+ 
++    if (this.tracker.getTrackedPointersCount() === 0) {
++      this.clearActivationTimeout();
++    }
++
+     if (this.currentState === _State.State.ACTIVE) {
+       this.end();
+     } else {
